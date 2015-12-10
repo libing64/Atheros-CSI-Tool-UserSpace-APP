@@ -33,12 +33,7 @@
 #include <errno.h>
 
 /* Define the defult destination MAC address */
-#define DEFAULT_DEST_MAC0	0x00
-#define DEFAULT_DEST_MAC1	0x03
-#define DEFAULT_DEST_MAC2	0x7F
-#define DEFAULT_DEST_MAC3	0xB0
-#define DEFAULT_DEST_MAC4	0x20
-#define DEFAULT_DEST_MAC5	0x20
+char default_mac_addr[] = "00:03:7F:B0:20:20";
  
 #define DEFAULT_IF	        "wlan0"
 #define BUF_SIZ	            2048	
@@ -46,70 +41,74 @@
 int main(int argc, char *argv[])
 {
 	int     sockfd;
-	int     i;
 	struct  ifreq if_idx;
 	struct  ifreq if_mac;
-	int     tx_len = 0,Cnt;
-	char    sendbuf[BUF_SIZ];
-	unsigned int DstAddr[6];
-	struct  ether_header *eh = (struct ether_header *) sendbuf;
-	struct  iphdr *iph = (struct iphdr *) (sendbuf + sizeof(struct ether_header));
+	char    buf[BUF_SIZ];
+	unsigned int dst_addr[6];
+	struct  ether_header *eh = (struct ether_header *) buf;
+	struct  iphdr *iph = (struct iphdr *) (buf + sizeof(struct ether_header));
 	struct  sockaddr_ll socket_address;
-	char    ifName[IFNAMSIZ];
+	char    ifname[IFNAMSIZ];
 	
     if (argc == 1)
     {
-        printf("Usage:   %s ifName DstMacAddr NumOfPacketToSend\n",argv[0]);
-        printf("Example: %s wlan0 00:7F:5D:3E:4A 100\n",argv[0]);
+        printf("Usage:   %s ifname dst_mac_address packet_len count\n", argv[0]);
+        printf("Example: %s wlan0 00:7F:5D:3E:4A 100 1000\n", argv[0]);
         exit(0);
     }
 
 	/* Get interface name */
 	if (argc > 1)
-		strcpy(ifName, argv[1]);
+		strcpy(ifname, argv[1]);
 	else
-		strcpy(ifName, DEFAULT_IF);
+		strcpy(ifname, DEFAULT_IF);
 
     //dst address seperated by :, example: 00:7F:5D:3E:4A
-    if(argc>2)
+    if(argc > 2)
     {
-        sscanf(argv[2],"%x:%x:%x:%x:%x:%x",&DstAddr[0],&DstAddr[1],&DstAddr[2],&DstAddr[3],&DstAddr[4],&DstAddr[5]);
-        //printf("DstMacAddr: %02x:%02x:%02x:%02x:%02x:%02x\n",DstAddr[0],DstAddr[1],DstAddr[2],DstAddr[3],DstAddr[4],DstAddr[5]);
-    }
-    else
+        sscanf(argv[2], "%x:%x:%x:%x:%x:%x", &dst_addr[0], &dst_addr[1], &dst_addr[2], &dst_addr[3], &dst_addr[4], &dst_addr[5]);
+    }else
     {
-        DstAddr[0] = DEFAULT_DEST_MAC0;
-        DstAddr[1] = DEFAULT_DEST_MAC1;
-        DstAddr[2] = DEFAULT_DEST_MAC2;
-        DstAddr[3] = DEFAULT_DEST_MAC3;
-        DstAddr[4] = DEFAULT_DEST_MAC4;
-        DstAddr[5] = DEFAULT_DEST_MAC5;
+       sscanf(default_mac_addr, "%x:%x:%x:%x:%x:%x", &dst_addr[0], &dst_addr[1], &dst_addr[2], &dst_addr[3], &dst_addr[4], &dst_addr[5]);
     }
 
+    int packet_len = 10;
     if(argc > 3)
-        Cnt = atoi(argv[3]);
+       packet_len  = atoi(argv[3]);
     else
-        Cnt = 1;
+        packet_len = 10;
 	
- 
+	int count = 10;
+	if(argc > 4)
+	{
+		count = atoi(argv[4]);
+	}
+
+	int interval = 100;
+	if(argc > 5)
+	{
+		interval = atoi(argv[5]);
+	}
+ 	
 	/* Open RAW socket to send on */
-	if ((sockfd = socket(AF_PACKET, SOCK_RAW, htons(ETH_P_ALL))) == -1) {
+	if ((sockfd = socket(AF_PACKET, SOCK_RAW, htons(ETH_P_ALL))) == -1) 
+	{
 	    perror("socket");
 	}
  
 	/* Get the index of the interface to send on */
 	memset(&if_idx, 0, sizeof(struct ifreq));
-	strncpy(if_idx.ifr_name, ifName, IFNAMSIZ-1);
+	strncpy(if_idx.ifr_name, ifname, IFNAMSIZ-1);
 	if (ioctl(sockfd, SIOCGIFINDEX, &if_idx) < 0)
 	    perror("SIOCGIFINDEX");
 	/* Get the MAC address of the interface to send on */
 	memset(&if_mac, 0, sizeof(struct ifreq));
-	strncpy(if_mac.ifr_name, ifName, IFNAMSIZ-1);
+	strncpy(if_mac.ifr_name, ifname, IFNAMSIZ-1);
 	if (ioctl(sockfd, SIOCGIFHWADDR, &if_mac) < 0)
 	    perror("SIOCGIFHWADDR");
  
 	/* Construct the Ethernet header */
-	memset(sendbuf, 0, BUF_SIZ);
+	memset(buf, 0, BUF_SIZ);
 	/* Ethernet header */
 	eh->ether_shost[0] = ((uint8_t *)&if_mac.ifr_hwaddr.sa_data)[0];
 	eh->ether_shost[1] = ((uint8_t *)&if_mac.ifr_hwaddr.sa_data)[1];
@@ -117,24 +116,26 @@ int main(int argc, char *argv[])
 	eh->ether_shost[3] = ((uint8_t *)&if_mac.ifr_hwaddr.sa_data)[3];
 	eh->ether_shost[4] = ((uint8_t *)&if_mac.ifr_hwaddr.sa_data)[4];
 	eh->ether_shost[5] = ((uint8_t *)&if_mac.ifr_hwaddr.sa_data)[5];
-	eh->ether_dhost[0] = DstAddr[0];
-	eh->ether_dhost[1] = DstAddr[1];
-	eh->ether_dhost[2] = DstAddr[2];
-	eh->ether_dhost[3] = DstAddr[3];
-	eh->ether_dhost[4] = DstAddr[4];
-	eh->ether_dhost[5] = DstAddr[5];
+	eh->ether_dhost[0] = dst_addr[0];
+	eh->ether_dhost[1] = dst_addr[1];
+	eh->ether_dhost[2] = dst_addr[2];
+	eh->ether_dhost[3] = dst_addr[3];
+	eh->ether_dhost[4] = dst_addr[4];
+	eh->ether_dhost[5] = dst_addr[5];
 
     /* Ethertype field */
 	eh->ether_type = htons(ETH_P_IP);
-	tx_len += sizeof(struct ether_header);
- 
+
+	int header_len = sizeof(struct ether_header);
+	int tx_len = header_len  + packet_len;
+ 	
 	/* Packet data 
      * We just set it to 0xaa you send arbitrary payload you like*/
-    for(i=1;i<=1000;i++){
-        
-	    sendbuf[tx_len++] = 0xaa;
+    for(int i = 1; i < packet_len; i++)
+    {    
+	    buf[header_len + i] = i % 255;
     } 
-    printf("Packet Length is: %d,pkt_num is: %d\n",tx_len,Cnt); 
+    printf("packet packet_len: %d, count: %d\n", packet_len, count); 
 	
     /* Index of the network device */
 	socket_address.sll_ifindex = if_idx.ifr_ifindex;
@@ -150,28 +151,31 @@ int main(int argc, char *argv[])
     /* target is another host*/
     socket_address.sll_pkttype  = PACKET_OTHERHOST;
     
-    /* address length*/
+    /* address packet_len*/
     socket_address.sll_halen    = ETH_ALEN;
 	/* Destination MAC */
-	socket_address.sll_addr[0] = DstAddr[0];
-	socket_address.sll_addr[1] = DstAddr[1];
-	socket_address.sll_addr[2] = DstAddr[2];
-	socket_address.sll_addr[3] = DstAddr[3];
-	socket_address.sll_addr[4] = DstAddr[4];
-	socket_address.sll_addr[5] = DstAddr[5];
+	socket_address.sll_addr[0] = dst_addr[0];
+	socket_address.sll_addr[1] = dst_addr[1];
+	socket_address.sll_addr[2] = dst_addr[2];
+	socket_address.sll_addr[3] = dst_addr[3];
+	socket_address.sll_addr[4] = dst_addr[4];
+	socket_address.sll_addr[5] = dst_addr[5];
  
 	/* Send packet */
-    for(;Cnt>0;Cnt--)
+    while( count-- )
     {
-        /* you set the time interval between two transmitting packets 
-         * for example, here we set it to 50 microseconds
-         * set to 0 if you don't need it
-         */
-        if (usleep(50) == -1){
+        
+        if (usleep(interval) == -1)
+        {
             printf("sleep failed\n");
         }
-        if (sendto(sockfd, sendbuf, tx_len, 0, (struct sockaddr*)&socket_address, sizeof(struct sockaddr_ll)) < 0){
+
+        if ( sendto(sockfd, buf, tx_len, 0, (struct sockaddr*)&socket_address, sizeof(struct sockaddr_ll)) < 0)
+        {
             printf("Send failed\n");
+        }else
+        {
+        	printf("%d packets left\n", count);
         }
     }
 	

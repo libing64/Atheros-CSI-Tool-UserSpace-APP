@@ -112,7 +112,7 @@ void fill_csi_matrix(u_int8_t* csi_addr, int nr, int nc, int num_tones, COMPLEX(
 
 int open_csi_device(){
    int fd;
-   fd = open("/dev/CSI_dev",O_RDWR);
+   fd = open("/dev/CSI_dev", O_RDWR);
     return fd;
 }
 
@@ -186,17 +186,21 @@ void record_csi_payload(unsigned char* buf_addr, csi_struct* csi_status, unsigne
     num_tones   = csi_status->num_tones;
     payload_len = csi_status->payload_len;
     csi_len     = csi_status->csi_len;
-    
-    /* record the data to the data buffer*/
-    for (i=1;i<=payload_len;i++){
-    //    printf("i is: %d \n",i);
-        data_buf[i-1] = buf_addr[csi_st_len + csi_len + i + 1];
-    }
-    
+
+
     /* extract the CSI and fill the complex matrix */
     csi_addr = buf_addr + csi_st_len;
     fill_csi_matrix(csi_addr,nr,nc,num_tones, csi_matrix);
+
+    /* record the data to the data buffer*/
+    memcpy(data_buf, buf_addr + csi_st_len + csi_len, payload_len);
+    // for (i = 0; i < payload_len; i++)
+    // {
+    //     //printf("i is: %d \n",i);
+    //     data_buf[i] = buf_addr[csi_st_len + csi_len + i];
+    // }
 }
+
 void  porcess_csi(unsigned char* data_buf, csi_struct* csi_status,COMPLEX(* csi_buf)[3][114]){
     /* here is the function for csi processing
      * you can install your own function */
