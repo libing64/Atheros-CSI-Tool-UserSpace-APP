@@ -41,7 +41,7 @@ struct iwl_notify
     uint8_t    rssiB;         /*  rx frame RSSI [ctl, chain 1] */
     uint8_t    rssiC;         /*  rx frame RSSI [ctl, chain 2] */
     
-    ///uint16_t   payload_len;    /*  packet length (bytes) */
+    uint16_t   payload_len;    /*  packet length (bytes) */
     //uint16_t   buf_len;       /*  data length in buffer */
     //uint8_t    payload[0];    /*  csi payload           */
 };

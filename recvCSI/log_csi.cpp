@@ -57,12 +57,11 @@ int main(int argc, char* argv[])
             notify = (iwl_notify*) buf;
 
             uint16_t csi_len = notify->csi_len;//csi payload len
+            uint16_t payload_len = notify->payload_len; 
+            //uint16_t payload_len = *(uint16_t*)( buf + sizeof(iwl_notify) );
+            uint16_t total_len = sizeof(iwl_notify) + csi_len + payload_len;
 
-            uint16_t payload_len = *(uint16_t*)( buf + sizeof(iwl_notify) );
-            uint16_t total_len = csi_len + 2 + payload_len;
-
-
-            uint16_t buf_len = *(uint16_t*)( buf + sizeof(iwl_notify)  + 2 + csi_len );
+            uint16_t buf_len = *(uint16_t*)( buf + sizeof (iwl_notify) + csi_len + payload_len );
 
             uint8_t rate = notify->rate;
             printf("rate: %hhu, csi_len: %hu, payload_len: %hu, total_len: %hu, buf_len: %hu\n", rate, csi_len, payload_len, total_len, buf_len);
